@@ -1,2 +1,6 @@
 main.o
 main
+.ycm_extra_conf.pyc
+rapid.build
+test
+*.o
