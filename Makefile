@@ -1,14 +1,21 @@
+
+threadtest.o: threadtest.cc
+	g++  -Irapidcheck/include -march=native -std=c++14 -m64 -O2 -g -Wextra -Wall  -c -o $@ $^
+
 test.o: test.cc
-	g++  -Irapidcheck/include -march=native -std=c++14 -m64 -O2 -g -Wextra -Wall  -c -o test.o test.cc
+	g++  -Irapidcheck/include -march=native -std=c++14 -m64 -O2 -g -Wextra -Wall  -c -o $@ $^
+
+threadtest: threadtest.o
+	g++ -pthread -lstdc++ -m64 -g -march=native -flto  $^ rapid.build/librapidcheck.a -o $@
 
 test: test.o
-	g++ -pthread -lstdc++ -m64 -g -march=native -flto  test.o rapid.build/librapidcheck.a -o test
+	g++ -pthread -lstdc++ -m64 -g -march=native -flto  $^ rapid.build/librapidcheck.a -o $@
 
-main.o: main.cc
-	g++  -march=native -std=c++11 -m64 -O2 -g -Wextra -Wall -Wshadow  -c -o main.o main.cc
+%.o: %.cc
+	g++  -march=native -std=c++11 -m64 -O2 -g -Wextra -Wall -Wshadow  -c -o $@ $^
 
-main: main.o
-	g++ -pthread -lstdc++ -m64 -g -march=native -flto  main.o   -o main
+%: %.o
+	g++ -pthread -lstdc++ -m64 -g -march=native -flto  $^   -o $@
 
 rapidcheck:
 	mkdir -p rapid.build

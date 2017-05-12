@@ -34,10 +34,12 @@ int main()
         new safe::ReadMLP_Forward1stLoop( {"nPlanes", "dSlope", "dp", "slope2", "dby", "dbx", "day"} );
     reference::ReadMLP_Forward1stLoop* ref =
         new reference::ReadMLP_Forward1stLoop( {"nPlanes", "dSlope", "dp", "slope2", "dby", "dbx", "day"} );
-    std::vector<float> input;
-    input.insert( input.begin(), l0.begin(), l0.end() );
-    float refval = ref->GetMvaValue( input );
-    float safval = saf->GetMvaValue( input );
+    std::vector<float> input1;
+    std::vector<float> input2;
+    input1.insert( input1.begin(), l0.begin(), l0.end() );
+    input2.insert( input2.begin(), l0.begin(), l0.end() );
+    float refval = ref->GetMvaValue( input1 );
+    float safval = saf->GetMvaValue( input2 );
 
     RC_ASSERT( refval == safval );
   } );

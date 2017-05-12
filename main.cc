@@ -1,4 +1,13 @@
-#include "./TMVA_MLP_Forward1stLoop.h"
+#include <vector>
+#include <cmath>
+#include <string>
+#include <iostream>
+
+#ifdef reference
+#include "reference/TMVA_MLP_Forward1stLoop.h"
+#else
+#include "safe/TMVA_MLP_Forward1stLoop.h"
+#endif
 #include <pthread.h>
 
 struct nerv {

@@ -81,7 +81,7 @@ class IClassifierReader {
    virtual ~IClassifierReader() {}
 
    // return classifier response
-   virtual float GetMvaValue( std::vector<float>& inputValues ) const = 0;
+   virtual float GetMvaValue( const std::vector<float>& inputValues ) const = 0;
 
 };
 
@@ -135,12 +135,13 @@ class ReadMLP_Forward1stLoop : public IClassifierReader {
    // "inputValues" is a vector of input values in the same order as the
    // variables given to the constructor
    // WARNING: inputVariables will be modified
-   inline float GetMvaValue( std::vector<float>& iV ) const override
+   inline float GetMvaValue( const std::vector<float>& iV ) const override
    {
+      std::vector<float> copy = iV;
       //Normalize input
-      Transform_1( iV);
+      Transform_1( copy);
 
-      return GetMvaValue__( iV );
+      return GetMvaValue__( copy );
    }
 
 
