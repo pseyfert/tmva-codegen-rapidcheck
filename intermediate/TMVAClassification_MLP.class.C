@@ -10,7 +10,7 @@ Method         : MLP::MLP
 TMVA Release   : 4.2.1         [262657]
 ROOT Release   : 6.11/01       [396033]
 Creator        : pseyfert
-Date           : Wed Aug 16 03:03:41 2017
+Date           : Wed Aug 16 04:09:38 2017
 Host           : Linux robusta 4.9.0-3-amd64 #1 SMP Debian 4.9.30-2+deb9u2 (2017-06-26) x86_64 GNU/Linux
 Dir            : /home/pseyfert/coding/recentroot/tmpinstall/tutorials/tmva
 Training events: 2000
@@ -108,8 +108,7 @@ class ReadMLP : public IClassifierReader {
    ReadMLP( std::vector<std::string>& theInputVars ) 
       : IClassifierReader(),
         fClassName( "ReadMLP" ),
-        fNvars( 4 ),
-        fIsNormalised( false )
+        fNvars( 4 )
    {      
       // the training input variables
       const char* inputVars[] = { "var1+var2", "var1-var2", "var3", "var4" };
@@ -175,8 +174,6 @@ class ReadMLP : public IClassifierReader {
 
    // input variable transformation
 
-   double fMin_1[3][4];
-   double fMax_1[3][4];
    double fOff_1[3][4];
    double fScal_1[3][4];
    void InitTransform_1();
@@ -192,8 +189,6 @@ class ReadMLP : public IClassifierReader {
    char   GetType( int ivar ) const { return fType[ivar]; }
 
    // normalisation of input variables
-   const bool fIsNormalised;
-   bool IsNormalised() const { return fIsNormalised; }
    double fVmin[4];
    double fVmax[4];
    double NormVariable( double x, double xmin, double xmax ) const {
@@ -213,8 +208,6 @@ class ReadMLP : public IClassifierReader {
    double ActivationFnc(double x) const;
    double OutputActivationFnc(double x) const;
 
-   int fLayers;
-   int fLayerSize[3];
    double fWeightMatrix0to1[10][5];   // weight matrix from layer 0 to 1
    double fWeightMatrix1to2[1][10];   // weight matrix from layer 1 to 2
 
@@ -223,10 +216,6 @@ class ReadMLP : public IClassifierReader {
 inline void ReadMLP::Initialize()
 {
    // build network structure
-   fLayers = 3;
-   fLayerSize[0] = 5;
-   fLayerSize[1] = 10;
-   fLayerSize[2] = 1;
    // weight matrix from layer 0 to 1
    fWeightMatrix0to1[0][0] = -0.440125203043803;
    fWeightMatrix0to1[1][0] = 2.05118334940934;
@@ -288,17 +277,28 @@ inline void ReadMLP::Initialize()
 
 inline double ReadMLP::GetMvaValue__( const std::vector<double>& inputValues ) const
 {
-   if (inputValues.size() != (unsigned int)fLayerSize[0]-1) {
-      std::cout << "Input vector needs to be of size " << fLayerSize[0]-1 << std::endl;
+   if (inputValues.size() != (unsigned int)4) {
+      std::cout << "Input vector needs to be of size " << 4 << std::endl;
       return 0;
    }
 
-   std::array<double, 5> fWeights0 {{}};
    std::array<double, 10> fWeights1 {{}};
    std::array<double, 1> fWeights2 {{}};
-   fWeights0.back() = 1.;
    fWeights1.back() = 1.;
 
+   // layer 0 to 1
+   for (int o=0; o<9; o++) {
+      std::array<double, 5> buffer; // no need to initialise
+      for (int i = 0; i<5 - 1; i++) {
+         buffer[i] = fWeightMatrix0to1[o][i] * inputValues[i];
+      } // loop over i
+      buffer.back() = fWeightMatrix0to1[o][4];      for (int i=0; i<5; i++) {
+         fWeights1[o] += buffer[i];
+      } // loop over i
+    } // loop over o
+   for (int o=0; o<9; o++) {
+      fWeights1[o] = ActivationFnc(fWeights1[o]);
+   } // loop over o
    // layer 1 to 2
    for (int o=0; o<1; o++) {
       std::array<double, 10> buffer; // no need to initialise
@@ -345,28 +345,9 @@ inline void ReadMLP::Clear()
          retval = 0;
       }
       else {
-         if (IsNormalised()) {
-            // normalise variables
-            std::vector<double> iV;
-            iV.reserve(inputValues.size());
-            int ivar = 0;
-            for (std::vector<double>::const_iterator varIt = inputValues.begin();
-                 varIt != inputValues.end(); varIt++, ivar++) {
-               iV.push_back(NormVariable( *varIt, fVmin[ivar], fVmax[ivar] ));
-            }
+            std::vector<double> iV(inputValues);
             Transform( iV, -1 );
             retval = GetMvaValue__( iV );
-         }
-         else {
-            std::vector<double> iV;
-            int ivar = 0;
-            for (std::vector<double>::const_iterator varIt = inputValues.begin();
-                 varIt != inputValues.end(); varIt++, ivar++) {
-               iV.push_back(*varIt);
-            }
-            Transform( iV, -1 );
-            retval = GetMvaValue__( iV );
-      }
       }
 
       return retval;
@@ -375,6 +356,8 @@ inline void ReadMLP::Clear()
 //_______________________________________________________________________
 inline void ReadMLP::InitTransform_1()
 {
+   double fMin_1[3][4];
+   double fMax_1[3][4];
    // Normalization transformation, initialisation
    fMin_1[0][0] = -4.94358778;
    fMax_1[0][0] = 6.3994679451;
@@ -461,9 +444,9 @@ inline void ReadMLP::Transform_1( std::vector<double>& iv, int cls) const
    dv.resize(nVar);
    for (int ivar=0; ivar<nVar; ivar++) dv[ivar] = iv[indicesGet.at(ivar)];
    for (int ivar=0;ivar<4;ivar++) {
-      double offset = fMin_1[cls][ivar];
-      double scale  = 1.0/(fMax_1[cls][ivar]-fMin_1[cls][ivar]);
-      iv[indicesPut.at(ivar)] = (dv[ivar]-offset)*scale * 2 - 1;
+      double offset = fOff_1[cls][ivar];
+      double scale  = fScal_1[cls][ivar];
+      iv[indicesPut.at(ivar)] = scale*dv[ivar]-offset;
    }
 }
 

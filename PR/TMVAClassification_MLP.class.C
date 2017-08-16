@@ -10,7 +10,7 @@ Method         : MLP::MLP
 TMVA Release   : 4.2.1         [262657]
 ROOT Release   : 6.11/01       [396033]
 Creator        : pseyfert
-Date           : Wed Aug 16 03:03:41 2017
+Date           : Wed Aug 16 04:09:38 2017
 Host           : Linux robusta 4.9.0-3-amd64 #1 SMP Debian 4.9.30-2+deb9u2 (2017-06-26) x86_64 GNU/Linux
 Dir            : /home/pseyfert/coding/recentroot/tmpinstall/tutorials/tmva
 Training events: 2000
@@ -286,6 +286,19 @@ inline double ReadMLP::GetMvaValue__( const std::vector<double>& inputValues ) c
    std::array<double, 1> fWeights2 {{}};
    fWeights1.back() = 1.;
 
+   // layer 0 to 1
+   for (int o=0; o<9; o++) {
+      std::array<double, 5> buffer; // no need to initialise
+      for (int i = 0; i<5 - 1; i++) {
+         buffer[i] = fWeightMatrix0to1[o][i] * inputValues[i];
+      } // loop over i
+      buffer.back() = fWeightMatrix0to1[o][4];      for (int i=0; i<5; i++) {
+         fWeights1[o] += buffer[i];
+      } // loop over i
+    } // loop over o
+   for (int o=0; o<9; o++) {
+      fWeights1[o] = ActivationFnc(fWeights1[o]);
+   } // loop over o
    // layer 1 to 2
    for (int o=0; o<1; o++) {
       std::array<double, 10> buffer; // no need to initialise
