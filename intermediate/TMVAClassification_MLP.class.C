@@ -288,13 +288,15 @@ inline void ReadMLP::Initialize()
 
 inline double ReadMLP::GetMvaValue__( const std::vector<double>& inputValues ) const
 {
-   if (inputValues.size() != (unsigned int)4) {
-      std::cout << "Input vector needs to be of size " << 4 << std::endl;
+   if (inputValues.size() != (unsigned int)fLayerSize[0]-1) {
+      std::cout << "Input vector needs to be of size " << fLayerSize[0]-1 << std::endl;
       return 0;
    }
 
+   std::array<double, 5> fWeights0 {{}};
    std::array<double, 10> fWeights1 {{}};
    std::array<double, 1> fWeights2 {{}};
+   fWeights0.back() = 1.;
    fWeights1.back() = 1.;
 
    // layer 1 to 2
@@ -343,9 +345,28 @@ inline void ReadMLP::Clear()
          retval = 0;
       }
       else {
-            std::vector<double> iV(inputValues);
+         if (IsNormalised()) {
+            // normalise variables
+            std::vector<double> iV;
+            iV.reserve(inputValues.size());
+            int ivar = 0;
+            for (std::vector<double>::const_iterator varIt = inputValues.begin();
+                 varIt != inputValues.end(); varIt++, ivar++) {
+               iV.push_back(NormVariable( *varIt, fVmin[ivar], fVmax[ivar] ));
+            }
             Transform( iV, -1 );
             retval = GetMvaValue__( iV );
+         }
+         else {
+            std::vector<double> iV;
+            int ivar = 0;
+            for (std::vector<double>::const_iterator varIt = inputValues.begin();
+                 varIt != inputValues.end(); varIt++, ivar++) {
+               iV.push_back(*varIt);
+            }
+            Transform( iV, -1 );
+            retval = GetMvaValue__( iV );
+      }
       }
 
       return retval;
