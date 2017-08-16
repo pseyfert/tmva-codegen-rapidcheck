@@ -70,7 +70,7 @@ int main() {
     float refval = ref->GetMvaValue(input);
     float xmlval = reader->EvaluateMVA( "MLP method" );
 
-    RC_ASSERT(fabs(refval - xmlval)<0.001);
+    RC_ASSERT(fabs(refval - xmlval)<0.00001);
   });
   rc::check("intermediate_vs_xml", [](const std::array<double, 4> &l0) {
     std::vector<std::string> vars({"var1+var2", "var1-var2", "var3", "var4"});
@@ -99,7 +99,7 @@ int main() {
     float refval = ref->GetMvaValue(input);
     float xmlval = reader->EvaluateMVA( "MLP method" );
 
-    RC_ASSERT(fabs(refval - xmlval)<0.001);
+    RC_ASSERT(fabs(refval - xmlval)<0.00001);
   });
   rc::check("PR_vs_xml", [](const std::array<double, 4> &l0) {
     std::vector<std::string> vars({"var1+var2", "var1-var2", "var3", "var4"});
@@ -128,7 +128,7 @@ int main() {
     float refval = ref->GetMvaValue(input);
     float xmlval = reader->EvaluateMVA( "MLP method" );
 
-    RC_ASSERT(fabs(refval - xmlval)<0.001);
+    RC_ASSERT(fabs(refval - xmlval)<0.00001);
   });
 
   return 0;

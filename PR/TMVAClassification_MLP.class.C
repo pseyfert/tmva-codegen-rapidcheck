@@ -10,7 +10,7 @@ Method         : MLP::MLP
 TMVA Release   : 4.2.1         [262657]
 ROOT Release   : 6.11/01       [396033]
 Creator        : pseyfert
-Date           : Wed Aug 16 04:09:38 2017
+Date           : Wed Aug 16 04:47:16 2017
 Host           : Linux robusta 4.9.0-3-amd64 #1 SMP Debian 4.9.30-2+deb9u2 (2017-06-26) x86_64 GNU/Linux
 Dir            : /home/pseyfert/coding/recentroot/tmpinstall/tutorials/tmva
 Training events: 2000
@@ -317,6 +317,8 @@ inline double ReadMLP::GetMvaValue__( const std::vector<double>& inputValues ) c
 }
 
 double ReadMLP::ActivationFnc(double x) const {
+   if (x > 4.97) return 1;
+   if (x < -4.97) return -1;
    float x2 = x * x;
    float a = x * (135135.0f + x2 * (17325.0f + x2 * (378.0f + x2)));
    float b = 135135.0f + x2 * (62370.0f + x2 * (3150.0f + x2 * 28.0f));
