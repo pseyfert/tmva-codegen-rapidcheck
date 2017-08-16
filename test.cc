@@ -76,7 +76,20 @@ int main() {
     float refval = ref->GetMvaValue(input1);
     float safval = saf->GetMvaValue(input2);
 
-    RC_ASSERT((refval - safval) < 0.001);
+    RC_ASSERT(fabs(refval - safval) < 0.001);
+  });
+  rc::check("PR_vs_intermediate", [](const std::array<double, 4> &l0) {
+    std::vector<std::string> vars({"var1+var2", "var1-var2", "var3", "var4"});
+    IClassifierReader *saf = new PR::ReadMLP(vars);
+    IClassifierReader *ref = new intermediate::ReadMLP(vars);
+    std::vector<double> input1;
+    std::vector<double> input2;
+    input1.insert(input1.begin(), l0.begin(), l0.end());
+    input2.insert(input2.begin(), l0.begin(), l0.end());
+    float refval = ref->GetMvaValue(input1);
+    float safval = saf->GetMvaValue(input2);
+
+    RC_ASSERT(refval == safval);
   });
 
   return 0;
