@@ -8,11 +8,11 @@
 
 Method         : MLP::MLP
 TMVA Release   : 4.2.1         [262657]
-ROOT Release   : 6.09/03       [395523]
+ROOT Release   : 6.11/01       [396033]
 Creator        : pseyfert
-Date           : Sat May 13 16:56:36 2017
-Host           : Linux hltperf-quanta01-e52630v4.lbdaq.cern.ch 3.10.0-514.el7.x86_64 #1 SMP Tue Nov 22 16:42:41 UTC 2016 x86_64 x86_64 x86_64 GNU/Linux
-Dir            : /home/pseyfert/root.install/tutorials/tmva
+Date           : Wed Aug 16 03:03:41 2017
+Host           : Linux robusta 4.9.0-3-amd64 #1 SMP Debian 4.9.30-2+deb9u2 (2017-06-26) x86_64 GNU/Linux
+Dir            : /home/pseyfert/coding/recentroot/tmpinstall/tutorials/tmva
 Training events: 2000
 Analysis type  : [Classification]
 
@@ -70,11 +70,35 @@ var1*3                        spec2                         spec2               
 
 ============================================================================ */
 
+#include <array>
 #include <vector>
 #include <cmath>
 #include <string>
 #include <iostream>
 
+#ifndef IClassifierReader__def
+#define IClassifierReader__def
+
+class IClassifierReader {
+
+ public:
+
+   // constructor
+   IClassifierReader() : fStatusIsClean( true ) {}
+   virtual ~IClassifierReader() {}
+
+   // return classifier response
+   virtual double GetMvaValue( const std::vector<double>& inputValues ) const = 0;
+
+   // returns classifier status
+   bool IsStatusClean() const { return fStatusIsClean; }
+
+ protected:
+
+   bool fStatusIsClean;
+};
+
+#endif
 
 class ReadMLP : public IClassifierReader {
 
@@ -153,6 +177,8 @@ class ReadMLP : public IClassifierReader {
 
    double fMin_1[3][4];
    double fMax_1[3][4];
+   double fOff_1[3][4];
+   double fScal_1[3][4];
    void InitTransform_1();
    void Transform_1( std::vector<double> & iv, int sigOrBgd ) const;
    void InitTransform();
@@ -262,39 +288,28 @@ inline void ReadMLP::Initialize()
 
 inline double ReadMLP::GetMvaValue__( const std::vector<double>& inputValues ) const
 {
-   if (inputValues.size() != (unsigned int)fLayerSize[0]-1) {
-      std::cout << "Input vector needs to be of size " << fLayerSize[0]-1 << std::endl;
+   if (inputValues.size() != (unsigned int)4) {
+      std::cout << "Input vector needs to be of size " << 4 << std::endl;
       return 0;
    }
 
-   double fWeights0[5];
-   for (int i=0; i<fLayerSize[0]; i++) fWeights0[i]=0;
-   double fWeights1[10];
-   for (int i=0; i<fLayerSize[1]; i++) fWeights1[i]=0;
-   double fWeights2[1];
-   for (int i=0; i<fLayerSize[2]; i++) fWeights2[i]=0;
-   fWeights0[fLayerSize[0]-1]=1;
-   fWeights1[fLayerSize[1]-1]=1;
+   std::array<double, 10> fWeights1 {{}};
+   std::array<double, 1> fWeights2 {{}};
+   fWeights1.back() = 1.;
 
-   for (int i=0; i<fLayerSize[0]-1; i++)
-      fWeights0[i]=inputValues[i];
-
-   // layer 0 to 1
-   for (int o=0; o<fLayerSize[1]-1; o++) {
-      for (int i=0; i<fLayerSize[0]; i++) {
-         double inputVal = fWeightMatrix0to1[o][i] * fWeights0[i];
-         fWeights1[o] += inputVal;
-      }
-      fWeights1[o] = ActivationFnc(fWeights1[o]);
-   }
    // layer 1 to 2
-   for (int o=0; o<fLayerSize[2]; o++) {
-      for (int i=0; i<fLayerSize[1]; i++) {
-         double inputVal = fWeightMatrix1to2[o][i] * fWeights1[i];
-         fWeights2[o] += inputVal;
-      }
+   for (int o=0; o<1; o++) {
+      std::array<double, 10> buffer; // no need to initialise
+      for (int i=0; i<10; i++) {
+         buffer[i] = fWeightMatrix1to2[o][i] * fWeights1[i];
+      } // loop over i
+      for (int i=0; i<10; i++) {
+         fWeights2[o] += buffer[i];
+      } // loop over i
+    } // loop over o
+   for (int o=0; o<1; o++) {
       fWeights2[o] = OutputActivationFnc(fWeights2[o]);
-   }
+   } // loop over o
 
    return fWeights2[0];
 }
@@ -302,6 +317,10 @@ inline double ReadMLP::GetMvaValue__( const std::vector<double>& inputValues ) c
 double ReadMLP::ActivationFnc(double x) const {
    // hyperbolic tan
    return tanh(x);
+   float x2 = x * x;
+   float a = x * (135135.0f + x2 * (17325.0f + x2 * (378.0f + x2)));
+   float b = 135135.0f + x2 * (62370.0f + x2 * (3150.0f + x2 * 28.0f));
+   return a / b;
 }
 double ReadMLP::OutputActivationFnc(double x) const {
    // sigmoid
@@ -324,28 +343,9 @@ inline void ReadMLP::Clear()
          retval = 0;
       }
       else {
-         if (IsNormalised()) {
-            // normalise variables
-            std::vector<double> iV;
-            iV.reserve(inputValues.size());
-            int ivar = 0;
-            for (std::vector<double>::const_iterator varIt = inputValues.begin();
-                 varIt != inputValues.end(); varIt++, ivar++) {
-               iV.push_back(NormVariable( *varIt, fVmin[ivar], fVmax[ivar] ));
-            }
+            std::vector<double> iV(inputValues);
             Transform( iV, -1 );
             retval = GetMvaValue__( iV );
-         }
-         else {
-            std::vector<double> iV;
-            int ivar = 0;
-            for (std::vector<double>::const_iterator varIt = inputValues.begin();
-                 varIt != inputValues.end(); varIt++, ivar++) {
-               iV.push_back(*varIt);
-            }
-            Transform( iV, -1 );
-            retval = GetMvaValue__( iV );
-         }
       }
 
       return retval;
@@ -357,28 +357,52 @@ inline void ReadMLP::InitTransform_1()
    // Normalization transformation, initialisation
    fMin_1[0][0] = -4.94358778;
    fMax_1[0][0] = 6.3994679451;
+   fScal_1[0][0] = 2.0/(fMax_1[0][0]-fMin_1[0][0]);
+   fOff_1[0][0] = fMin_1[0][0]*fScal_1[0][0]+1.;
    fMin_1[1][0] = -8.14423561096;
    fMax_1[1][0] = 7.26972866058;
+   fScal_1[1][0] = 2.0/(fMax_1[1][0]-fMin_1[1][0]);
+   fOff_1[1][0] = fMin_1[1][0]*fScal_1[1][0]+1.;
    fMin_1[2][0] = -8.14423561096;
    fMax_1[2][0] = 7.26972866058;
+   fScal_1[2][0] = 2.0/(fMax_1[2][0]-fMin_1[2][0]);
+   fOff_1[2][0] = fMin_1[2][0]*fScal_1[2][0]+1.;
    fMin_1[0][1] = -3.96643972397;
    fMax_1[0][1] = 3.11266636848;
+   fScal_1[0][1] = 2.0/(fMax_1[0][1]-fMin_1[0][1]);
+   fOff_1[0][1] = fMin_1[0][1]*fScal_1[0][1]+1.;
    fMin_1[1][1] = -3.25508260727;
    fMax_1[1][1] = 4.0258936882;
+   fScal_1[1][1] = 2.0/(fMax_1[1][1]-fMin_1[1][1]);
+   fOff_1[1][1] = fMin_1[1][1]*fScal_1[1][1]+1.;
    fMin_1[2][1] = -3.96643972397;
    fMax_1[2][1] = 4.0258936882;
+   fScal_1[2][1] = 2.0/(fMax_1[2][1]-fMin_1[2][1]);
+   fOff_1[2][1] = fMin_1[2][1]*fScal_1[2][1]+1.;
    fMin_1[0][2] = -2.78645992279;
    fMax_1[0][2] = 3.50111722946;
+   fScal_1[0][2] = 2.0/(fMax_1[0][2]-fMin_1[0][2]);
+   fOff_1[0][2] = fMin_1[0][2]*fScal_1[0][2]+1.;
    fMin_1[1][2] = -5.03730010986;
    fMax_1[1][2] = 4.27845287323;
+   fScal_1[1][2] = 2.0/(fMax_1[1][2]-fMin_1[1][2]);
+   fOff_1[1][2] = fMin_1[1][2]*fScal_1[1][2]+1.;
    fMin_1[2][2] = -5.03730010986;
    fMax_1[2][2] = 4.27845287323;
+   fScal_1[2][2] = 2.0/(fMax_1[2][2]-fMin_1[2][2]);
+   fOff_1[2][2] = fMin_1[2][2]*fScal_1[2][2]+1.;
    fMin_1[0][3] = -2.42712664604;
    fMax_1[0][3] = 4.5351858139;
+   fScal_1[0][3] = 2.0/(fMax_1[0][3]-fMin_1[0][3]);
+   fOff_1[0][3] = fMin_1[0][3]*fScal_1[0][3]+1.;
    fMin_1[1][3] = -5.95050764084;
    fMax_1[1][3] = 4.64035463333;
+   fScal_1[1][3] = 2.0/(fMax_1[1][3]-fMin_1[1][3]);
+   fOff_1[1][3] = fMin_1[1][3]*fScal_1[1][3]+1.;
    fMin_1[2][3] = -5.95050764084;
    fMax_1[2][3] = 4.64035463333;
+   fScal_1[2][3] = 2.0/(fMax_1[2][3]-fMin_1[2][3]);
+   fOff_1[2][3] = fMin_1[2][3]*fScal_1[2][3]+1.;
 }
 
 //_______________________________________________________________________

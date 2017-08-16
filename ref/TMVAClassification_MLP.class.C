@@ -8,11 +8,11 @@
 
 Method         : MLP::MLP
 TMVA Release   : 4.2.1         [262657]
-ROOT Release   : 6.09/03       [395523]
+ROOT Release   : 6.11/01       [396033]
 Creator        : pseyfert
-Date           : Sat May 13 17:20:12 2017
-Host           : Linux hltperf-quanta01-e52630v4.lbdaq.cern.ch 3.10.0-514.el7.x86_64 #1 SMP Tue Nov 22 16:42:41 UTC 2016 x86_64 x86_64 x86_64 GNU/Linux
-Dir            : /home/pseyfert/root.install/tutorials/tmva
+Date           : Wed Aug 16 03:23:57 2017
+Host           : Linux robusta 4.9.0-3-amd64 #1 SMP Debian 4.9.30-2+deb9u2 (2017-06-26) x86_64 GNU/Linux
+Dir            : /home/pseyfert/coding/recentroot/tmpinstall/tutorials/tmva
 Training events: 2000
 Analysis type  : [Classification]
 
@@ -70,11 +70,35 @@ var1*3                        spec2                         spec2               
 
 ============================================================================ */
 
+#include <array>
 #include <vector>
 #include <cmath>
 #include <string>
 #include <iostream>
 
+#ifndef IClassifierReader__def
+#define IClassifierReader__def
+
+class IClassifierReader {
+
+ public:
+
+   // constructor
+   IClassifierReader() : fStatusIsClean( true ) {}
+   virtual ~IClassifierReader() {}
+
+   // return classifier response
+   virtual double GetMvaValue( const std::vector<double>& inputValues ) const = 0;
+
+   // returns classifier status
+   bool IsStatusClean() const { return fStatusIsClean; }
+
+ protected:
+
+   bool fStatusIsClean;
+};
+
+#endif
 
 class ReadMLP : public IClassifierReader {
 
@@ -192,16 +216,15 @@ class ReadMLP : public IClassifierReader {
    double fWeightMatrix0to1[10][5];   // weight matrix from layer 0 to 1
    double fWeightMatrix1to2[1][10];   // weight matrix from layer 1 to 2
 
-   double * fWeights[3];
 };
 
 inline void ReadMLP::Initialize()
 {
    // build network structure
    fLayers = 3;
-   fLayerSize[0] = 5; fWeights[0] = new double[5]; 
-   fLayerSize[1] = 10; fWeights[1] = new double[10]; 
-   fLayerSize[2] = 1; fWeights[2] = new double[1]; 
+   fLayerSize[0] = 5;
+   fLayerSize[1] = 10;
+   fLayerSize[2] = 1;
    // weight matrix from layer 0 to 1
    fWeightMatrix0to1[0][0] = -0.440125203043803;
    fWeightMatrix0to1[1][0] = 2.05118334940934;
@@ -268,33 +291,33 @@ inline double ReadMLP::GetMvaValue__( const std::vector<double>& inputValues ) c
       return 0;
    }
 
-   for (int l=0; l<fLayers; l++)
-      for (int i=0; i<fLayerSize[l]; i++) fWeights[l][i]=0;
-
-   for (int l=0; l<fLayers-1; l++)
-      fWeights[l][fLayerSize[l]-1]=1;
+   std::array<double, 5> fWeights0 {{}};
+   std::array<double, 10> fWeights1 {{}};
+   std::array<double, 1> fWeights2 {{}};
+   fWeights0.back() = 1.;
+   fWeights1.back() = 1.;
 
    for (int i=0; i<fLayerSize[0]-1; i++)
-      fWeights[0][i]=inputValues[i];
+      fWeights0[i]=inputValues[i];
 
    // layer 0 to 1
    for (int o=0; o<fLayerSize[1]-1; o++) {
       for (int i=0; i<fLayerSize[0]; i++) {
-         double inputVal = fWeightMatrix0to1[o][i] * fWeights[0][i];
-         fWeights[1][o] += inputVal;
-      }
-      fWeights[1][o] = ActivationFnc(fWeights[1][o]);
-   }
+         double inputVal = fWeightMatrix0to1[o][i] * fWeights0[i];
+         fWeights1[o] += inputVal;
+      } // loop over i
+      fWeights1[o] = ActivationFnc(fWeights1[o]);
+   } // loop over o
    // layer 1 to 2
    for (int o=0; o<fLayerSize[2]; o++) {
       for (int i=0; i<fLayerSize[1]; i++) {
-         double inputVal = fWeightMatrix1to2[o][i] * fWeights[1][i];
-         fWeights[2][o] += inputVal;
-      }
-      fWeights[2][o] = OutputActivationFnc(fWeights[2][o]);
-   }
+         double inputVal = fWeightMatrix1to2[o][i] * fWeights1[i];
+         fWeights2[o] += inputVal;
+      } // loop over i
+      fWeights2[o] = OutputActivationFnc(fWeights2[o]);
+   } // loop over o
 
-   return fWeights[2][0];
+   return fWeights2[0];
 }
 
 double ReadMLP::ActivationFnc(double x) const {
@@ -309,10 +332,6 @@ double ReadMLP::OutputActivationFnc(double x) const {
 // Clean up
 inline void ReadMLP::Clear() 
 {
-   // clean up the arrays
-   for (int lIdx = 0; lIdx < 3; lIdx++) {
-      delete[] fWeights[lIdx];
-   }
 }
    inline double ReadMLP::GetMvaValue( const std::vector<double>& inputValues ) const
    {
